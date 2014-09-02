@@ -164,11 +164,16 @@ def main():
     else:
         helpers.logprefix = 'server: '
     debug1('latency control setting = %r\n' % latency_control)
+    debug1('send known routes = %r\n' % send_nets)
 
-    routes = list(list_routes())
-    debug1('available routes:\n')
-    for r in routes:
-        debug1('  %s/%d\n' % r)
+    if send_nets:
+        routes = list(list_routes())
+        debug1('available routes:\n')
+        for r in routes:
+            debug1('  %s/%d\n' % r)
+    else:
+        routes = list()
+        debug1('not sending routes\n')
         
     # synchronization header
     sys.stdout.write('\0\0SSHUTTLE0001')

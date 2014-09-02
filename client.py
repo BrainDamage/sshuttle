@@ -252,7 +252,8 @@ def _main(listener, fw, ssh_cmd, remotename, python, latency_control,
     try:
         (serverproc, serversock) = ssh.connect(ssh_cmd, remotename, python,
                         stderr=ssyslog._p and ssyslog._p.stdin,
-                        options=dict(latency_control=latency_control))
+                        options=dict(latency_control=latency_control,
+                            send_nets=auto_nets))
     except socket.error, e:
         if e.args[0] == errno.EPIPE:
             raise Fatal("failed to establish ssh session (1)")
