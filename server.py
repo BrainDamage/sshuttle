@@ -9,20 +9,20 @@ if not globals().get('skip_imports'):
 def _ipmatch(ipstr):
     if ipstr == 'default':
         ipstr = '0.0.0.0/0'
-    m = re.match(r'^(\d+(\.\d+(\.\d+(\.\d+)?)?)?)(?:/(\d+))?$', ipstr)
+    # Regex to check that ipstr is formatted like an IPv4 address
+    m = re.match('^(\d+)' + '(\.\d+)?' * 3 + '(?:/(\d+))?$', ipstr)
     if m:
-        g = m.groups()
-        ips = g[0]
-        width = int(g[4] or 32)
-        if g[1] == None:
-            ips += '.0.0.0'
-            width = min(width, 8)
-        elif g[2] == None:
-            ips += '.0.0'
-            width = min(width, 16)
-        elif g[3] == None:
-            ips += '.0'
-            width = min(width, 24)
+        # If the network prefix width is specified, use it. Otherwise, assume 32
+        if '/' in ipstr:
+            ips, width = ipstr.split('/')
+            width = int(width)
+        else:
+            ips, width = ipstr, 32
+        # If ips doesn't have four octets, then assume that the network
+        # prefix width is constrained. Pad ips with 0s
+        octets = ips.count('.') + 1
+        width = min(width, 8 * octets)
+        ips += '.0' * (4 - octets)
         return (struct.unpack('!I', socket.inet_aton(ips))[0], width)
 
 
