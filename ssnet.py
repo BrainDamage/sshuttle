@@ -44,7 +44,7 @@ cmd_to_name = {
 
 NET_ERRS = [errno.ECONNREFUSED, errno.ETIMEDOUT,
             errno.EHOSTUNREACH, errno.ENETUNREACH,
-            errno.EHOSTDOWN, errno.ENETDOWN]
+            errno.EHOSTDOWN, errno.ENETDOWN, errno.ECONNRESET]
 
 
 def _add(l, elem):
@@ -168,6 +168,9 @@ class SockWrapper:
                 self.connect_to = None
             elif e.args[0] in NET_ERRS + [errno.EACCES, errno.EPERM]:
                 # a "normal" kind of error
+                self.connect_to = None
+                self.seterr(e)
+            elif e.args[0] == errno.ECONNRESET:
                 self.connect_to = None
                 self.seterr(e)
             else:
