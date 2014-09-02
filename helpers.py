@@ -46,7 +46,7 @@ def resolvconf_nameservers():
     l = []
     for line in open('/etc/resolv.conf'):
         words = line.lower().split()
-        if len(words) >= 2 and words[0] == 'nameserver':
+        if len(words) >= 2 and words[0] == 'nameserver' and words[1].find(':') == -1:
             l.append(words[1])
     return l
 
