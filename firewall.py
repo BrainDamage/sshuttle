@@ -72,12 +72,19 @@ def ipt_ttl(*args):
 # multiple copies shouldn't have overlapping subnets, or only the most-
 # recently-started one will win (because we use "-I OUTPUT 1" instead of
 # "-A OUTPUT").
-def do_iptables(port, dnsport, nslist, subnets):
+def do_iptables(port, dnsport, nslist, subnets, route_username, excludedports):
     chain = 'sshuttle-%s' % port
+
+    eportsargv = []
+    if excludedports:
+        eportsargv += ['--match', 'multiport', '!', '--dport', excludedports]
 
     # basic cleanup/setup of chains
     if ipt_chain_exists(chain):
-        nonfatal(ipt, '-D', 'OUTPUT', '-j', chain)
+        if not route_username:
+            nonfatal(ipt, '-D', 'OUTPUT', '-j', chain)
+        else:
+            nonfatal(ipt, '-m', 'owner', '--uid-owner', route_username, '-D', 'OUTPUT', '-j', chain)
         nonfatal(ipt, '-D', 'PREROUTING', '-j', chain)
         nonfatal(ipt, '-F', chain)
         ipt('-X', chain)
@@ -85,7 +92,10 @@ def do_iptables(port, dnsport, nslist, subnets):
     if subnets or dnsport:
         ipt('-N', chain)
         ipt('-F', chain)
-        ipt('-I', 'OUTPUT', '1', '-j', chain)
+        if not route_username:
+            ipt('-I', 'OUTPUT', '1', '-j', chain)
+        else:
+            ipt('-m', 'owner', '--uid-owner', route_username, '-I', 'OUTPUT', '1', '-j', chain)
         ipt('-I', 'PREROUTING', '1', '-j', chain)
 
     if subnets:
@@ -118,7 +128,8 @@ def do_iptables(port, dnsport, nslist, subnets):
                     ipt_ttl('-A', chain, '-j', 'REDIRECT',
                         '--dest', '%s/%s' % (snet,swidth),
                         '-p', 'tcp',
-                        '--to-ports', str(port))
+                        '--to-ports', str(port),
+                        *eportsargv)
 
     if dnsport:
         for ip in nslist:
@@ -271,7 +282,7 @@ def ipfw(*args):
     _call(argv)
 
 
-def do_ipfw(port, dnsport, nslist, subnets):
+def do_ipfw(port, dnsport, nslist, subnets, route_username, excludedports):
     sport = str(port)
     xsport = str(port+1)
 
@@ -479,7 +490,7 @@ def ip_in_subnets(ip, subnets):
 # exit.  In case that fails, it's not the end of the world; future runs will
 # supercede it in the transproxy list, at least, so the leftover rules
 # are hopefully harmless.
-def main(port, dnsport, nslist, syslog):
+def main(port, dnsport, nslist, syslog, route_username, excludedports):
     assert(port > 0)
     assert(port <= 65535)
     assert(dnsport >= 0)
@@ -544,7 +555,7 @@ def main(port, dnsport, nslist, syslog):
     try:
         if line:
             debug1('firewall manager: starting transproxy.\n')
-            do_wait = do_it(port, dnsport, nslist, subnets)
+            do_wait = do_it(port, dnsport, nslist, subnets, route_username, excludedports)
             sys.stdout.write('STARTED\n')
         
         try:
@@ -574,5 +585,5 @@ def main(port, dnsport, nslist, syslog):
             debug1('firewall manager: undoing changes.\n')
         except:
             pass
-        do_it(port, 0, [], [])
+        do_it(port, 0, [], [], route_username, excludedports)
         restore_etc_hosts(port)
