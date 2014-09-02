@@ -96,7 +96,7 @@ def original_dst(sock):
 
 
 class FirewallClient:
-    def __init__(self, port, subnets_include, subnets_exclude, dnsport, route_username, excludedports):
+    def __init__(self, port, subnets_include, subnets_exclude, dns_hosts, dnsport, route_username, excludedports):
         self.port = port
         self.auto_nets = []
         self.subnets_include = subnets_include
@@ -395,7 +395,7 @@ def main(listenip, ssh_cmd, remotename, python, latency_control,
         dnslistener = None
         dns_hosts = []
 
-    fw = FirewallClient(listenip[1], subnets_include, subnets_exclude, dnsport, route_username, excludedports)
+    fw = FirewallClient(listenip[1], subnets_include, subnets_exclude, dns_hosts, dnsport, route_username, excludedports)
     
     try:
         return _main(listener, fw, ssh_cmd, remotename,
