@@ -1,3 +1,5 @@
+# vim: set tabstop=4 expandtab :
+
 import re, errno, socket, select, signal, struct
 import compat.ssubprocess as ssubprocess
 import helpers, ssyslog
@@ -92,17 +94,32 @@ def do_iptables(port, dnsport, nslist, subnets):
         # to least-specific, and at any given level of specificity, we want
         # excludes to come first.  That's why the columns are in such a non-
         # intuitive order.
-        for swidth,sexclude,snet in sorted(subnets, reverse=True):
+        for swidth,sport,sexclude,snet in sorted(subnets, reverse=True):
             if sexclude:
-                ipt('-A', chain, '-j', 'RETURN',
-                    '--dest', '%s/%s' % (snet,swidth),
-                    '-p', 'tcp')
+                if sport > 0:
+                    ipt('-A', chain, '-j', 'RETURN',
+                        '--dest', '%s/%s' % (snet,swidth),
+                        '-m', 'tcp',
+                        '--dport', '%d' % sport,
+                        '-p', 'tcp')
+                else:
+                    ipt('-A', chain, '-j', 'RETURN',
+                        '--dest', '%s/%s' % (snet,swidth),
+                        '-p', 'tcp')
             else:
-                ipt_ttl('-A', chain, '-j', 'REDIRECT',
+                if sport > 0:
+                    ipt_ttl('-A', chain, '-j', 'REDIRECT',
+                        '--dest', '%s/%s' % (snet,swidth),
+                        '-m', 'tcp',
+                        '--dport', '%d' % sport,
+                        '-p', 'tcp',
+                        '--to-ports', str(port))
+                else:
+                    ipt_ttl('-A', chain, '-j', 'REDIRECT',
                         '--dest', '%s/%s' % (snet,swidth),
                         '-p', 'tcp',
                         '--to-ports', str(port))
-                
+
     if dnsport:
         for ip in nslist:
             ipt_ttl('-A', chain, '-j', 'REDIRECT',
@@ -308,16 +325,29 @@ def do_ipfw(port, dnsport, nslist, subnets):
 
     if subnets:
         # create new subnet entries
-        for swidth,sexclude,snet in sorted(subnets, reverse=True):
+        for swidth,dport,sexclude,snet in sorted(subnets, reverse=True):
             if sexclude:
-                ipfw('add', sport, 'skipto', xsport,
-                     'tcp',
-                     'from', 'any', 'to', '%s/%s' % (snet,swidth))
+                if dport > 0:
+                    ipfw('add', sport, 'skipto', xsport,
+                        'tcp',
+                        'from', 'any', 'to', '%s/%s' % (snet,swidth),
+                         '%d' % dport)
+                else:
+                    ipfw('add', sport, 'skipto', xsport,
+                        'tcp',
+                        'from', 'any', 'to', '%s/%s' % (snet,swidth))
             else:
-                ipfw('add', sport, 'fwd', '127.0.0.1,%d' % port,
-                     'tcp',
-                     'from', 'any', 'to', '%s/%s' % (snet,swidth),
-                     'not', 'ipttl', '42', 'keep-state', 'setup')
+                if dport > 0:
+                    ipfw('add', sport, 'fwd', '127.0.0.1,%d' % port,
+                        'tcp',
+                        'from', 'any', 'to', '%s/%s' % (snet,swidth),
+                         '%d' % dport,
+                        'not', 'ipttl', '42', 'keep-state', 'setup')
+                else:
+                    ipfw('add', sport, 'fwd', '127.0.0.1,%d' % port,
+                        'tcp',
+                        'from', 'any', 'to', '%s/%s' % (snet,swidth),
+                        'not', 'ipttl', '42', 'keep-state', 'setup')
 
     # This part is much crazier than it is on Linux, because MacOS (at least
     # 10.6, and probably other versions, and maybe FreeBSD too) doesn't
@@ -506,10 +536,10 @@ def main(port, dnsport, nslist, syslog):
         elif line == 'GO\n':
             break
         try:
-            (width,exclude,ip) = line.strip().split(',', 2)
+            (width,dport,exclude,ip) = line.strip().split(',', 3)
         except:
             raise Fatal('firewall: expected route or GO but got %r' % line)
-        subnets.append((int(width), bool(int(exclude)), ip))
+        subnets.append((int(width), int(dport), bool(int(exclude)), ip))
         
     try:
         if line:

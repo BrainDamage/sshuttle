@@ -36,7 +36,12 @@ entire subnet to the VPN.
     single IP address), 1.2.3.4/32 (equivalent to 1.2.3.4),
     1.2.3.0/24 (a 24-bit subnet, ie. with a 255.255.255.0
     netmask), and 0/0 ('just route everything through the
-    VPN').
+    VPN'). In addition, it is also possible to filter
+    additionally on the tcp port to include/exclude.
+    This is done by adding :port at the end of your netmask.
+    Note that `:port` is also valid. In this case, the netmask
+    will be defaulted to 0/0. Valid examples are `:80`,
+    `0:80`, `1.2.3.4:80` and `1.2.3.4/24:80`.
 
 -l, --listen=*[ip:]port*
 :   use this ip address and port number as the transparent

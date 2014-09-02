@@ -154,10 +154,10 @@ class FirewallClient:
 
     def start(self):
         self.pfile.write('ROUTES\n')
-        for (ip,width) in self.subnets_include+self.auto_nets:
-            self.pfile.write('%d,0,%s\n' % (width, ip))
-        for (ip,width) in self.subnets_exclude:
-            self.pfile.write('%d,1,%s\n' % (width, ip))
+        for (ip,width,port) in self.subnets_include+self.auto_nets:
+            self.pfile.write('%d,%d,0,%s\n' % (width, port, ip))
+        for (ip,width,port) in self.subnets_exclude:
+            self.pfile.write('%d,%d,1,%s\n' % (width, port, ip))
         self.pfile.write('GO\n')
         self.pfile.flush()
         line = self.pfile.readline()

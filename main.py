@@ -1,3 +1,4 @@
+# vim: set tabstop=4 expandtab :
 import sys, os, re
 import helpers, options, client, server, firewall, hostwatch
 import compat.ssubprocess as ssubprocess
@@ -9,11 +10,16 @@ from helpers import *
 def parse_subnets(subnets_str):
     subnets = []
     for s in subnets_str:
-        m = re.match(r'(\d+)(?:\.(\d+)\.(\d+)\.(\d+))?(?:/(\d+))?$', s)
+        m = re.match(r'(\d+)?(?:\.(\d+)\.(\d+)\.(\d+))?(?:/(\d+))?(:\d+)?$', s)
         if not m:
             raise Fatal('%r is not a valid IP subnet format' % s)
-        (a,b,c,d,width) = m.groups()
+        (a,b,c,d,width,port) = m.groups()
         (a,b,c,d) = (int(a or 0), int(b or 0), int(c or 0), int(d or 0))
+        if port == None:
+            port = 0
+        else:
+            port = int(re.sub('^:','',port))
+
         if width == None:
             width = 32
         else:
@@ -22,7 +28,10 @@ def parse_subnets(subnets_str):
             raise Fatal('%d.%d.%d.%d has numbers > 255' % (a,b,c,d))
         if width > 32:
             raise Fatal('*/%d is greater than the maximum of 32' % width)
-        subnets.append(('%d.%d.%d.%d' % (a,b,c,d), width))
+        if port > 65535:
+            raise Fatal('*:%d is greater than the maximum of 65535' % port)
+        subnets.append(('%d.%d.%d.%d' % (a,b,c,d), width, port))
+
     return subnets
 
 
@@ -57,7 +66,7 @@ dns        capture local DNS requests and forward to the remote DNS server
 dns-hosts= capture DNS requests to these servers and forward (comma-separated)
 python=    path to python interpreter on the remote server
 r,remote=  ssh hostname (and optional username) of remote sshuttle server
-x,exclude= exclude this subnet (can be used more than once)
+x,exclude= exclude this subnet and/or port (can be used more than once)
 exclude-from=  exclude the subnets in a file (whitespace separated)
 v,verbose  increase debug message verbosity
 e,ssh-cmd= the command to use to connect to the remote [ssh]
